@@ -74,6 +74,7 @@ describe('msnodesqlv8', function () {
     it('batch (stream)', done => TESTS.batch(done, true))
     it('create procedure batch', done => TESTS['create procedure batch'](done))
     it('prepared statement', done => TESTS['prepared statement'](done))
+    it('prepared statement that fails to prepare throws', done => TESTS['prepared statement that fails to prepare throws'](done))
     it('prepared statement with duplicate parameters throws', done => TESTS['prepared statement with duplicate parameters throws'](done))
     it('prepared statement parameters can be replaced', done => TESTS['prepared statement parameters can be replaced'](done))
     it('prepared statement with affected rows', done => TESTS['prepared statement with affected rows'](done))
@@ -82,6 +83,7 @@ describe('msnodesqlv8', function () {
     it('transaction with commit', done => TESTS['transaction with commit'](done))
     it('transaction throws on bad isolation level', done => TESTS['transaction throws on bad isolation level'](done))
     it('transaction accepts good isolation levels', done => TESTS['transaction accepts good isolation levels'](done))
+    it('transaction uses default isolation level', done => TESTS['transaction uses default isolation level'](done))
     it('cancel request', done => TESTS['cancel request'](done))
     it('allows repeat calls to connect', done => TESTS['repeat calls to connect resolve'](config(), done))
     it('calls to close during connection throw', done => TESTS['calls to close during connection throw'](config(), done))
@@ -226,6 +228,7 @@ describe('msnodesqlv8', function () {
 
     it('new Table', done => TESTS['new Table'](done))
     it('Recordset.toTable()', done => TESTS['Recordset.toTable()'](done))
+    it('Recordset.toTable() from existing', done => TESTS['Recordset.toTable() from existing'](done))
 
     after(() => sql.close())
   })

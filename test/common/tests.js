@@ -3,6 +3,7 @@
 const assert = require('assert')
 const stream = require('stream')
 const ISOLATION_LEVELS = require('../../lib/isolationlevel')
+const BaseTransaction = require('../../lib/base/transaction')
 
 process.on('unhandledRejection', (reason, p) => {
   console.log('Unhandled Rejection at: Promise', p, 'reason:', reason)
@@ -498,9 +499,12 @@ module.exports = (sql, driver) => {
       t.columns.add('b', sql.DateTime2, {
         nullable: true
       })
-      t.rows.add(1, new Date('2019-03-12T11:06:59.000Z'))
-      t.rows.add(2, '2019-03-12T11:06:59.000Z')
-      t.rows.add(3, 1552388819000)
+      t.columns.add('c', sql.Date, {
+        nullable: true
+      })
+      t.rows.add(1, new Date('2019-03-12T11:06:59.000Z'), new Date('2019-03-13'))
+      t.rows.add(2, '2019-03-12T11:06:59.000Z', '2019-03-13T00:00:00.000Z')
+      t.rows.add(3, 1552388819000, 1552499543000)
 
       let req = new TestRequest()
       req.bulk(t).then(result => {
@@ -511,6 +515,7 @@ module.exports = (sql, driver) => {
           assert.strictEqual(result.recordset.length, 3)
           for (let i = 0; i < result.recordset.length; i++) {
             assert.strictEqual(result.recordset[i].b.toISOString(), '2019-03-12T11:06:59.000Z')
+            assert.strictEqual(result.recordset[i].c.toISOString(), '2019-03-13T00:00:00.000Z')
           }
 
           done()
@@ -601,6 +606,20 @@ module.exports = (sql, driver) => {
           ps.unprepare(() => done(err))
         })
       }).catch(done)
+    },
+
+    'prepared statement that fails to prepare throws' (done) {
+      const req = new TestPreparedStatement()
+      req.prepare('some nonsense')
+        .then(() => {
+          return req.unprepare()
+        })
+        .then(() => {
+          done(new Error('Unexpectedly prepared bad statement'))
+        })
+        .catch(() => {
+          done()
+        })
     },
 
     'prepared statement with duplicate parameters throws' (done) {
@@ -778,6 +797,18 @@ module.exports = (sql, driver) => {
       Promise.all(promises).then(() => done()).catch(err => {
         done(err)
       })
+    },
+
+    'transaction uses default isolation level' (done) {
+      const originalIsolationLevel = BaseTransaction.defaultIsolationLevel
+      assert.strictEqual(originalIsolationLevel, ISOLATION_LEVELS.READ_COMMITTED)
+      BaseTransaction.defaultIsolationLevel = ISOLATION_LEVELS.READ_UNCOMMITTED
+      const tran = new TestTransaction()
+      assert.strictEqual(tran.isolationLevel, ISOLATION_LEVELS.READ_UNCOMMITTED)
+
+      // Reset to originalIsolationLevel
+      BaseTransaction.defaultIsolationLevel = originalIsolationLevel
+      done()
     },
 
     'transaction with error' (done) {
@@ -1465,6 +1496,23 @@ module.exports = (sql, driver) => {
 
           done()
         }).catch(done)
+      }).catch(done)
+    },
+
+    'Recordset.toTable() from existing' (done) {
+      const req = new TestRequest()
+      req.query('select a, b, c from tvp_test').then(result => {
+        const tvp = result.recordset.toTable('#tvp_test')
+
+        assert.strictEqual(tvp.columns[1].nullable, true, 'the nullable property is not set as true')
+
+        // note: msnodesqlv8 does not provide the identity and readOnly column metadata
+        if (driver !== 'msnodesqlv8') {
+          assert.strictEqual(tvp.columns[0].identity, true, 'the identity property is not set as true')
+          assert.strictEqual(tvp.columns[2].readOnly, true, 'the readOnly property is not set as true')
+        }
+
+        done()
       }).catch(done)
     }
   }
